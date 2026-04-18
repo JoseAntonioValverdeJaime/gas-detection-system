@@ -1,0 +1,134 @@
+﻿<div style="display:flex; height:100vh;">
+
+    <!-- MENÚ -->
+    <div style="width:200px; background:#0f2c3f; color:white; padding:20px;">
+        <h3>Menú</h3>
+        <p>Dashboard Alertas</p>
+    </div>
+
+    <!-- CONTENIDO -->
+    <div style="flex:1; padding:20px;">
+
+        <h2>Sistema de Detección de Anomalías</h2>
+
+        <!-- TARJETAS -->
+        <div style="display:flex; gap:20px; margin-top:20px;">
+            <div>Alertas detectadas: <span id="total">0</span></div>
+            <div>Validadas: <span id="validadas">0</span></div>
+            <div>Rechazadas: <span id="rechazadas">0</span></div>
+        </div>
+
+        <!-- PANEL DERECHO -->
+        <div style="margin-top:30px;">
+            <h3>Alertas nuevas</h3>
+            <div id="alertas" style="max-height:400px; overflow-y:auto; border:1px solid #ccc; padding:10px; background:white;"></div>
+        </div>
+
+        <!-- TABLA -->
+        <div style="margin-top:30px;">
+            <h3>Historial</h3>
+            <table border="1" width="100%">
+                <thead>
+                    <tr>
+                        <th>MeterId</th>
+                        <th>Status</th>
+                        <th>Tipo de alerta</th>
+                        <th>Observación</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla"></tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    async function cargar() {
+
+        const res = await fetch("https://localhost:7213/api/Alerts");
+        const data = await res.json();
+
+        let total = data.length;
+        let validadas = data.filter(x => x.status === "Validada").length;
+        let rechazadas = data.filter(x => x.status === "Rechazada").length;
+
+        document.getElementById("total").innerText = total;
+        document.getElementById("validadas").innerText = validadas;
+        document.getElementById("rechazadas").innerText = rechazadas;
+
+        let pendientes = data.filter(x => x.status === "Pendiente");
+
+        let html = "";
+        pendientes.forEach(a => {
+            html += `<div style="border:1px solid #ccc; padding:10px; margin-bottom:8px; border-radius:6px; background:#f8f8f8;">
+            <b>${a.meterId}</b> - Alerta ${a.alertLevel ?? "Sin nivel"}
+            <button onclick="ver(${a.id})" style="margin-left:10px;">Ver</button>
+        </div>`;
+        });
+
+        document.getElementById("alertas").innerHTML = html;
+
+        let tabla = "";
+        data.filter(x => x.status !== "Pendiente").forEach(a => {
+            tabla += `<tr>
+            <td>${a.meterId}</td>
+            <td>${a.status}</td>
+            <td>${a.alertLevel ?? "Sin nivel"}</td>
+            <td>${a.observation ?? "Sin observación"}</td>
+            <td>
+                <button onclick="ver(${a.id})">Detalle</button>
+                ${a.status === "Validada" ? `<button onclick="revalidar(${a.id})" style="margin-left:8px;">Revalidar</button>` : ""}
+            </td>
+          </tr>`;
+        });
+
+        document.getElementById("tabla").innerHTML = tabla;
+    }
+
+        function ver(id) {
+        window.location.href = "/Home/AlertDetail?id=" + id;
+    }
+
+        async function revalidar(id) {
+        const confirmar = confirm("¿Desea devolver esta alerta a revisión?");
+        if (!confirmar) return;
+
+        const resGet = await fetch(`https://localhost:7213/api/Alerts/${id}`);
+        const a = await resGet.json();
+
+        const res = await fetch(`https://localhost:7213/api/Alerts/${id}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                id: a.id,
+                meterId: a.meterId,
+                status: "Pendiente",
+                observation: a.observation,
+                codigo: a.codigo,
+                technicianId: a.technicianId,
+                createdAt: a.createdAt,
+                assignedAt: a.assignedAt,
+                reassignedAt: a.reassignedAt,
+                attendedAt: null,
+                riskLevel: a.riskLevel,
+                alertLevel: a.alertLevel,
+                rejectReason: null
+            })
+        });
+
+        if (res.ok) {
+            alert("La alerta volvió a revisión");
+            cargar();
+        } else {
+            alert("No se pudo revalidar");
+        }
+    }
+
+
+
+    cargar();
+</script>

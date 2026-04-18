@@ -1,0 +1,142 @@
+﻿@{
+    var alertId = ViewBag.AlertId;
+}
+
+<div style="background:#0d3b5c; color:white; padding:15px; font-size:28px; text-align:center; font-weight:bold;">
+    SISTEMA DE DETECCIÓN DE ANOMALIAS
+</div>
+
+<div style="padding:20px; background:#f2f2f2; min-height:100vh;">
+
+    <button onclick="history.back()" style="background:#2f80ed; color:white; border:none; padding:10px 20px; border-radius:20px; cursor:pointer;">
+        ← VOLVER
+    </button>
+
+    <div style="max-width:900px; margin:20px auto; background:white; padding:25px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+        <h2 style="margin-bottom:20px;">Información General de Alerta</h2>
+
+        <div id="detalle"></div>
+
+        <div id="acciones" style="display:flex; justify-content:space-between; margin-top:30px;">
+            <button onclick="validarAlerta()" style="background:#2ecc71; color:white; border:none; padding:12px 30px; border-radius:8px; cursor:pointer;">
+                Validar Alerta
+            </button>
+
+            <button onclick="rechazarAlerta()" style="background:#e74c3c; color:white; border:none; padding:12px 30px; border-radius:8px; cursor:pointer;">
+                Rechazar Alerta
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const alertId = @alertId;
+
+    async function cargarDetalle() {
+        const res = await fetch(`https://localhost:7213/api/Alerts/${alertId}`);
+        const a = await res.json();
+
+        let html = `
+            <p><b>ID:</b> ${a.id}</p>
+            <p><b>Medidor:</b> ${a.meterId}</p>
+            <p><b>Estado:</b> ${a.status}</p>
+            <p><b>Observación:</b> ${a.observation ?? "Sin dato"}</p>
+            <p><b>Código:</b> ${a.codigo ?? "Sin dato"}</p>
+            <p><b>Nivel de alerta:</b> ${a.alertLevel ?? "Sin nivel"}</p>
+        `;
+
+            if (a.status === "Rechazada") {
+        html += `
+            <div style="margin-top:15px; padding:15px; background:#fdecea; border-left:6px solid #e74c3c; border-radius:8px;">
+                <p style="margin:0; font-weight:bold; color:#c0392b;">Motivo de rechazo</p>
+                <p style="margin-top:8px; color:#333;">${a.rejectReason ?? "No especificado"}</p>
+            </div>
+        `;
+    }
+
+        html += `<p><b>Fecha de creación:</b> ${a.createdAt}</p>`;
+
+        document.getElementById("detalle").innerHTML = html;
+
+        if (a.status === "Validada" || a.status === "Rechazada" || a.status === "Cerrada") {
+            document.getElementById("acciones").style.display = "none";
+        }
+    }
+
+    async function validarAlerta() {
+        const resGet = await fetch(`https://localhost:7213/api/Alerts/${alertId}`);
+        const a = await resGet.json();
+
+        const res = await fetch(`https://localhost:7213/api/Alerts/${alertId}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                id: a.id,
+                meterId: a.meterId,
+                status: "Validada",
+                observation: a.observation,
+                codigo: a.codigo,
+                technicianId: a.technicianId,
+                createdAt: a.createdAt,
+                assignedAt: a.assignedAt,
+                reassignedAt: a.reassignedAt,
+                attendedAt: new Date().toISOString(),
+                riskLevel: a.riskLevel,
+                alertLevel: a.alertLevel,
+                rejectReason: null
+            })
+        });
+
+        if (res.ok) {
+            alert("Alerta validada");
+            window.location.href = "/Home/Dashboard";
+        } else {
+            alert("No se pudo validar");
+        }
+    }
+
+    async function rechazarAlerta() {
+        const motivo = prompt("Ingrese el motivo del rechazo:");
+
+        if (!motivo || motivo.trim() === "") {
+            alert("Debe ingresar un motivo de rechazo");
+            return;
+        }
+
+        const resGet = await fetch(`https://localhost:7213/api/Alerts/${alertId}`);
+        const a = await resGet.json();
+
+        const res = await fetch(`https://localhost:7213/api/Alerts/${alertId}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                id: a.id,
+                meterId: a.meterId,
+                status: "Rechazada",
+                observation: a.observation,
+                codigo: a.codigo,
+                technicianId: a.technicianId,
+                createdAt: a.createdAt,
+                assignedAt: a.assignedAt,
+                reassignedAt: a.reassignedAt,
+                attendedAt: new Date().toISOString(),
+                riskLevel: a.riskLevel,
+                alertLevel: a.alertLevel,
+                rejectReason: motivo
+            })
+        });
+
+        if (res.ok) {
+            alert("Alerta rechazada");
+            window.location.href = "/Home/Dashboard";
+        } else {
+            alert("No se pudo rechazar");
+        }
+    }
+
+    cargarDetalle();
+</script>
