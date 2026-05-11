@@ -1,6 +1,7 @@
 ﻿using GasWeb.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace GasWeb.Controllers
 {
@@ -18,10 +19,16 @@ namespace GasWeb.Controllers
             return View();
         }
 
+        public IActionResult TecnicosAdmin()
+        {
+            return View();
+        }
+
         public IActionResult Privacy()
         {
             return View();
         }
+
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
@@ -37,6 +44,46 @@ namespace GasWeb.Controllers
             ViewBag.AlertId = id;
             return View();
         }
+
+        public IActionResult Brigada()
+        {
+            var role = HttpContext.Session.GetString("Role");
+
+            if (role != "Admin" && role != "Supervisor")
+            {
+                return RedirectToAction("Dashboard");
+            }
+
+            return View();
+        }
+
+        [HttpPost]
+        public IActionResult GuardarSesion([FromBody] JsonElement data)
+        {
+            string role = data.GetProperty("role").GetString();
+
+            HttpContext.Session.SetString("Role", role);
+
+            return Ok();
+        }
+
+        public IActionResult AlertDetailBrigada(int id)
+        {
+            ViewBag.AlertId = id;
+            return View();
+        }
+
+        public IActionResult TecnicosBusqueda()
+        {
+            return View();
+        }
+
+        public IActionResult TecnicoDetalle(int id)
+        {
+            ViewBag.Id = id; // Pasamos el ID a la vista
+            return View();
+        }
+
 
     }
 }

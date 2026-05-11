@@ -87,8 +87,9 @@
         document.getElementById("tabla").innerHTML = tabla;
     }
 
-        function ver(id) {
-        window.location.href = "/Home/AlertDetail?id=" + id;
+            function ver(id) {
+        // Forzamos la URL completa y añadimos un timestamp para evitar caché
+        window.location.href = `/Home/AlertDetail?id=${id}&t=${new Date().getTime()}`;
     }
 
         async function revalidar(id) {

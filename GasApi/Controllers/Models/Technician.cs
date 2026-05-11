@@ -6,9 +6,16 @@ namespace GasApi.Models
     public class Technician
     {
         public int Id { get; set; }
-        public string FullName { get; set; } = null!;
-        public bool IsActive { get; set; } = true;
-
-        
+    public string FullName { get; set; } = null!;
+    public string? Dni { get; set; }
+    public string? Phone { get; set; }
+    public string? Email { get; set; }
+    public int TotalAssignments { get; set; }
+    public int TotalAttended { get; set; }
+    public string? CoverageZone { get; set; }
+    public string? PhotoUrl { get; set; }
+    public bool IsActive { get; set; }
+    
+    
     }
 }

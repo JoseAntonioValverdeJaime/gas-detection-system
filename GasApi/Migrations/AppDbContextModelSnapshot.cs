@@ -67,7 +67,7 @@ namespace GasApi.Migrations
 
                     b.HasIndex("TechnicianId");
 
-                    b.ToTable("Alerts");
+                    b.ToTable("Alerts", (string)null);
                 });
 
             modelBuilder.Entity("GasApi.Models.AlertAudit", b =>
@@ -100,7 +100,7 @@ namespace GasApi.Migrations
 
                     b.HasIndex("AlertId");
 
-                    b.ToTable("AlertAudit");
+                    b.ToTable("AlertAudit", (string)null);
                 });
 
             modelBuilder.Entity("GasApi.Models.Technician", b =>
@@ -121,7 +121,7 @@ namespace GasApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Technicians");
+                    b.ToTable("Technicians", (string)null);
                 });
 
             modelBuilder.Entity("GasApi.Models.User", b =>
@@ -156,7 +156,7 @@ namespace GasApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("GasApi.Models.Alert", b =>

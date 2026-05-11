@@ -1,0 +1,256 @@
+﻿@{
+    ViewData["Title"] = "Gestión de Alertas - Brigada";
+}
+
+<div style="display:flex; min-height:100vh; background:#f2f2f2; font-family:Arial, sans-serif;">
+
+    <!-- MENÚ LATERAL -->
+    <div style="width:240px; background:#0f2c3f; color:white; padding:20px;">
+
+        <h3 style="margin-bottom:30px;">Menú</h3>
+
+        <div style="margin-bottom:15px; font-weight:bold; cursor:pointer;"
+             onclick="window.location.href='/Home/Brigada'">
+            Gestión Alertas
+        </div>
+
+        <div style="margin-bottom:15px; cursor:pointer;"
+             onclick="window.location.href='/Home/Reportes'">
+            Reportes
+        </div>
+
+        <div style="margin-bottom:15px; cursor:pointer;"
+             onclick="window.location.href='/Home/Brigada'">
+            Habilitar / Inhabilitar Técnicos
+        </div>
+
+    </div>
+
+    <!-- CONTENIDO -->
+    <div style="flex:1; padding:25px;">
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 style="margin:0; color:#1f2d3d;">Gestión de Alertas</h2>
+            <button id="btnBuscar" onclick="filtrar()" style="background:#2f80ed; color:white; border:none; padding:10px 18px; border-radius:6px; cursor:pointer;">
+                BUSCAR
+            </button>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:10px; margin-bottom:20px;">
+            <input id="cliente" placeholder="Cliente" style="padding:10px; border:1px solid #ccc; border-radius:6px;" />
+            <input id="medidor" placeholder="Medidor" style="padding:10px; border:1px solid #ccc; border-radius:6px;" />
+            <input id="zona" placeholder="Zona" style="padding:10px; border:1px solid #ccc; border-radius:6px;" />
+            <input id="tipo" placeholder="Tipo" style="padding:10px; border:1px solid #ccc; border-radius:6px;" />
+
+            <select id="severidad" style="padding:10px; border:1px solid #ccc; border-radius:6px;">
+                <option value="">Severidad</option>
+                <option value="Alta">Alta</option>
+                <option value="Media">Media</option>
+                <option value="Baja">Baja</option>
+            </select>
+
+            <select id="estado" style="padding:10px; border:1px solid #ccc; border-radius:6px;">
+                <option value="">Estado</option>
+                <option value="Validada">Validada</option>
+                <option value="Asignada">Asignada</option>
+                <option value="Reasignada">Reasignada</option>
+            </select>
+
+            <input id="fecha" type="date" style="padding:10px; border:1px solid #ccc; border-radius:6px;" />
+        </div>
+
+        <div style="background:white; border-radius:10px; padding:15px; box-shadow:0 2px 8px rgba(0,0,0,0.08); overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="background:#0f2c3f; color:white;">
+                        <th style="padding:12px; text-align:left;">ID</th>
+                        <th style="padding:12px; text-align:left;">Estado</th>
+                        <th style="padding:12px; text-align:left;">Cliente</th>
+                        <th style="padding:12px; text-align:left;">Medidor</th>
+                        <th style="padding:12px; text-align:left;">Zona</th>
+                        <th style="padding:12px; text-align:left;">Tipo</th>
+                        <th style="padding:12px; text-align:left;">Nivel</th>
+                        <th style="padding:12px; text-align:left;">Fecha Asignacion</th>
+                        <th style="padding:12px; text-align:left;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla"></tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    let dataGlobal = [];
+
+        async function cargar() {
+        const res = await fetch("https://localhost:7213/api/Alerts");
+        const data = await res.json();
+
+        dataGlobal = data.filter(x =>
+            x.status === "Validada" ||
+            x.status === "Asignada" ||
+            x.status === "Reasignada"
+        );
+    
+        console.log("Datos de Alertas (con AssignedAt):", dataGlobal);
+    
+        renderTabla(dataGlobal);
+    }
+
+            function renderTabla(lista) {
+        let html = "";
+        const hoy = new Date();
+        const hoyFecha = hoy.toISOString().split("T")[0]; // “hoy” como string "YYYY-MM-DD"
+
+        lista.forEach(a => {
+            const esEditable = (a.status === "Asignada" || a.status === "Reasignada");
+
+            
+            const fechaAss = a.assignedAt;
+                let fechaVencida = false;
+
+    if (fechaAss) {
+        const fechaAsignadaStr = new Date(fechaAss).toISOString().split("T")[0];
+        const hoyStr = new Date().toISOString().split("T")[0];
+
+        fechaVencida = fechaAsignadaStr <= hoyStr;
+
+        console.log("----- DEBUG -----");
+        console.log("ID:", a.id);
+        console.log("Asignada:", fechaAsignadaStr);
+        console.log("Hoy:", hoyStr);
+        console.log("Vencida:", fechaVencida);
+    }
+
+            console.log(`Alerta ${a.id}: AssignedAt="${fechaAss}", fechaVencida=${fechaVencida}`);
+
+            html += `
+                <tr style="border-bottom:1px solid #e5e5e5;">
+                    <td style="padding:12px;">${a.id ?? ""}</td>
+                    <td style="padding:12px;"><b>${a.status ?? "-"}</b></td>
+                    <td style="padding:12px;">${a.cliente ?? "-"}</td>
+                    <td style="padding:12px;">${a.meterId ?? "-"}</td>
+                    <td style="padding:12px;">${a.zona ?? "-"}</td>
+                    <td style="padding:12px;">${a.tipo ?? "-"}</td>
+                    <td style="padding:12px;">${a.alertLevel ?? "Sin nivel"}</td>
+                        <td style="padding:12px;">
+        ${a.assignedAt && new Date(a.assignedAt).getFullYear() > 2000
+    ? new Date(a.assignedAt).toLocaleDateString()
+    : "-"}
+    </td>
+                    <td style="padding:12px;">
+                        ${esEditable
+                            ? (fechaVencida
+                                ? `<button onclick="cerrar(${a.id})"
+                                          style="background:#e74c3c; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;">
+                                    Cerrar Alerta
+                                </button>
+                                <button onclick="devolverAValidada(${a.id})"
+                                        style="background:#f39c12; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; margin-left:10px;">
+                                    Devolver a Validada
+                                </button>`
+                                : `<button onclick="editar(${a.id})"
+                                          style="background:#f39c12; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;">
+                                    Reasignar
+                                </button>`)
+                            : `<button onclick="ver(${a.id})"
+                                      style="background:#2f80ed; color:white; border:none; padding:8px 14px; border-radius:6px; cursor:pointer;">
+                                VER
+                            </button>`
+                        }
+                    </td>
+                </tr>
+            `;
+        });
+
+        document.getElementById("tabla").innerHTML = html || `
+            <tr>
+                <td colspan="8" style="padding:20px; text-align:center; color:#777;">No hay alertas para brigada</td>
+            </tr>
+        `;
+    }
+
+            function cerrar(id) {
+        window.location.href = "/Home/AlertDetailBrigada?id=" + id + "&modo=cerrar";
+    }
+
+        async function devolverAValidada(id) {
+        try {
+            const res = await fetch(`https://localhost:7213/api/Alerts/${id}/devolver`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" }
+            });
+
+            if (res.ok) {
+
+                // ✅ SOLO AQUÍ se limpia (NO afecta otros flujos)
+                localStorage.removeItem(`tecnicoSeleccionado_${id}`);
+
+                alert("Alerta devuelta a Validada correctamente.");
+                window.location.reload();
+            } else {
+                const err = await res.text();
+                alert("Error al devolver: " + err);
+            }
+        } catch (e) {
+            alert("Error de red al devolver: " + e.message);
+        }
+    }
+
+                function toggleTecnico(id) {
+        fetch(`https://localhost:7234/api/Technicians/${id}/toggle`, {
+            method: "PUT"
+        })
+        .then(res => {
+            if (res.ok) {
+                alert("Estado actualizado");
+            } else {
+                alert("Error al actualizar");
+            }
+        });
+    }
+
+
+
+    function filtrar() {
+        const cliente = document.getElementById("cliente").value.toLowerCase();
+        const medidor = document.getElementById("medidor").value.toLowerCase();
+        const zona = document.getElementById("zona").value.toLowerCase();
+        const tipo = document.getElementById("tipo").value.toLowerCase();
+        const severidad = document.getElementById("severidad").value;
+        const estado = document.getElementById("estado").value;
+        const fecha = document.getElementById("fecha").value;
+
+        const filtrado = dataGlobal.filter(x => {
+            const valorCliente = (x.cliente ?? "").toLowerCase();
+            const valorMedidor = (x.meterId ?? "").toString().toLowerCase();
+            const valorZona = (x.zona ?? "").toLowerCase();
+            const valorTipo = (x.tipo ?? "").toLowerCase();
+            const valorSeveridad = (x.alertLevel ?? "");
+            const valorEstado = (x.status ?? "");
+            const valorFecha = x.createdAt ? new Date(x.createdAt).toISOString().slice(0, 10) : "";
+
+            return valorCliente.includes(cliente) &&
+                   valorMedidor.includes(medidor) &&
+                   valorZona.includes(zona) &&
+                   valorTipo.includes(tipo) &&
+                   (severidad === "" || valorSeveridad === severidad) &&
+                   (estado === "" || valorEstado === estado) &&
+                   (fecha === "" || valorFecha === fecha);
+        });
+
+        renderTabla(filtrado);
+    }
+
+    function ver(id) {
+        window.location.href = "/Home/AlertDetailBrigada?id=" + id;
+    }
+
+    function editar(id) {
+        window.location.href = "/Home/AlertDetailBrigada?id=" + id + "&modo=editar";
+    }
+
+    cargar();
+</script>

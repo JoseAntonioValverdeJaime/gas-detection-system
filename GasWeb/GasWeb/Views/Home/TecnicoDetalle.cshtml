@@ -1,0 +1,87 @@
+﻿@{
+    ViewData["Title"] = "Detalle del Técnico";
+}
+
+<div style="padding:40px; font-family:Arial;">
+    <h2 id="titulo">Cargando datos del técnico...</h2>
+    
+    <div id="infoTecnico" style="background:#fff; padding:20px; border-radius:10px; border:1px solid #ccc;">
+        <p><b>Nombre:</b> <span id="nombre"></span></p>
+        <p><b>Zona:</b> <span id="zona"></span></p>
+        <p><b>Asignaciones Vigentes:</b> <span id="asignaciones"></span></p>
+    </div>
+
+    <h3 style="margin-top:30px;">Alertas Asignadas Actualmente</h3>
+    <table style="width:100%; border-collapse:collapse; margin-top:10px;">
+        <thead>
+            <tr style="background:#0f2c3f; color:white;">
+                <th style="padding:10px;">Código Alerta</th>
+                <th style="padding:10px;">Estado</th>
+                <th style="padding:10px;">Tipo</th>
+                <th style="padding:10px;">Nivel</th>
+                <th style="padding:10px;">Cliente</th>
+                <th style="padding:10px;">Zona</th>
+                <th style="padding:10px;">Ubicación</th>
+                <th style="padding:10px;">Fecha</th>
+                <th style="padding:10px;">Observación</th>
+            </tr>
+        </thead>
+        <tbody id="tablaAlertas"></tbody>
+    </table>
+</div>
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const tecnicoId = urlParams.get("id");
+
+    async function cargarDetalleTecnico() {
+        try {
+            const res = await fetch(`https://localhost:7213/api/Technicians/${tecnicoId}`);
+            const t = await res.json();
+
+            document.getElementById("titulo").innerText = "Detalle de: " + (t.fullName ?? t.FullName);
+            document.getElementById("nombre").innerText = t.fullName ?? t.fullName ?? "";
+            document.getElementById("zona").innerText = t.coverageZone ?? t.coverageZone ?? "";
+            document.getElementById("asignaciones").innerText = t.totalAssignments ?? t.TotalAssignments ?? 0;
+
+            cargarAlertasDelTecnico(tecnicoId);
+        } catch (err) {
+            console.error("Error al cargar técnico:", err);
+        }
+    }
+
+    async function cargarAlertasDelTecnico(id) {
+        try {
+            const res = await fetch(`https://localhost:7213/api/Technicians/${id}/alerts`);
+            const alertas = await res.json();
+            
+            const tbody = document.getElementById("tablaAlertas");
+            tbody.innerHTML = "";
+
+            if (alertas.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='2' style='padding:10px; text-align:center;'>Sin asignaciones vigentes</td></tr>";
+                return;
+            }
+
+            alertas.forEach(a => {
+                tbody.innerHTML += `
+                    <tr style="border-bottom:1px solid #eee;">
+                        <td style="padding:10px;">${a.codigo ?? a.Codigo ?? "-"}</td>
+            <td style="padding:10px;">${a.status ?? a.Status ?? "-"}</td>
+            <td style="padding:10px;">${a.tipo ?? a.Tipo ?? "-"}</td>
+            <td style="padding:10px;">${a.nivel ?? a.Nivel ?? "-"}</td>
+            <td style="padding:10px;">${a.cliente ?? a.Cliente ?? "-"}</td>
+            <td style="padding:10px;">${a.zona ?? a.Zona ?? "-"}</td>
+            <td style="padding:10px;">${a.ubicacion ?? a.Ubicacion ?? "-"}</td>
+            <td style="padding:10px;">${a.fecha ?? a.Fecha ?? "-"}</td>
+            <td style="padding:10px;">${a.observacion ?? a.Observacion ?? "-"}</td>
+                    </tr>
+                `;
+            });
+        } catch (err) {
+            console.error("Error al cargar alertas:", err);
+        }
+    } 
+
+    cargarDetalleTecnico(); // Ejecutamos al final
+</script>

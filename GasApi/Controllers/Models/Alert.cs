@@ -19,7 +19,7 @@ namespace GasApi.Models
         public DateTime? AssignedAt { get; set; }
         public DateTime? ReassignedAt { get; set; }
         public DateTime? AttendedAt { get; set; }
-
+      
         public decimal? RiskLevel { get; set; }
         public string? AlertLevel { get; set; }
         public string? RejectReason { get; set; }

@@ -1,0 +1,298 @@
+﻿@{
+    var alertId = ViewBag.AlertId;
+}
+
+<script>
+    const url = new URL(window.location.href);
+    const modo = url.searchParams.get("modo");
+
+    var alertId = @Json.Serialize(alertId);
+    window.keyTecnico = `tecnicoSeleccionado_${alertId}`;
+</script>
+
+<div style="background:#0d3b5c; color:white; padding:15px; font-size:28px; text-align:center; font-weight:bold;">
+    SISTEMA DE DETECCIÓN DE ANOMALÍAS
+</div>
+
+<div style="padding:20px; background:#f2f2f2; min-height:100vh;">
+
+    <button id="btnVolver" type="button" onclick="history.back()"
+            style="background:#2f80ed; color:white; border:none; padding:10px 20px; border-radius:20px; cursor:pointer; margin-bottom:20px;">
+        ← VOLVER
+    </button>
+
+    <div style="display:flex; gap:20px; align-items:flex-start;">
+
+        <div style="flex:2; background:white; padding:25px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+            <h2 style="margin-bottom:20px;">Información General de Alerta - Validado</h2>
+            <div id="detalle"></div>
+
+            <div style="text-align:center; margin-top:30px;">
+                <button id="btnAsignar" type="button" onclick="asignarAlerta()" disabled
+                        style="background:#27ae60; color:white; border:none; padding:12px 30px; border-radius:8px; cursor:pointer; opacity:0.5;">
+                    Asignar Alerta
+                </button>
+            </div>
+        </div>
+
+        <div style="flex:1; background:white; padding:25px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+            <h3 style="margin-bottom:15px;">Buscar Técnico Disponible</h3>
+
+            <div style="text-align:center; margin-bottom:20px;">
+                <button id="btnBuscar" type="button" onclick="buscarTecnico()"
+                        style="background:#2f80ed; color:white; border:none; padding:10px 25px; border-radius:8px; cursor:pointer;">
+                    Buscar
+                </button>
+            </div>
+
+            <div style="border:1px solid #ddd; border-radius:10px; padding:15px; min-height:160px; background:#fafafa;">
+                <p><b>Nombre Técnico:</b> <span id="nombreTecnico">Vacío</span></p>
+                <p><b>Zona Mantenimiento:</b> <span id="zonaTecnico">Vacío</span></p>
+
+                <label style="display:block; margin-top:20px; margin-bottom:8px;"><b>Fecha Visita:</b></label>
+                <input id="fechaVisita" type="date"
+                       style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px;" />
+
+                <div id="bloqueArchivo" style="display:none;">
+                    <label style="display:block; margin-top:20px;"><b>Adjuntar evidencia:</b></label>
+                    <input type="file" id="archivoEvidencia" />
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let tecnicoEncontrado = false;
+    let ventanaBusqueda = null;
+
+
+            function backupLocalStorage() {
+        const data = localStorage.getItem(window.keyTecnico);
+        if (data) {
+            localStorage.setItem(`BACKUP_${window.keyTecnico}`, data);
+            console.log("🛡️ BACKUP creado!");
+        }
+    }
+    function restoreLocalStorage() {
+        const backup = localStorage.getItem(`BACKUP_${window.keyTecnico}`);
+        if (backup) {
+            localStorage.setItem(window.keyTecnico, backup);
+            console.log("🛡️ RESTAURADO!");
+            leerTecnico();
+        }
+    }
+
+        function initFecha() {
+        const hoy = new Date().toISOString().split("T")[0];
+        document.getElementById("fechaVisita").min = hoy;
+    }
+
+
+            function ajustarBotonAsignar() {
+        const btn = document.getElementById("btnAsignar");
+
+        if (modo === "editar") {
+            btn.innerText = "Reasignar Alerta";
+            btn.style.backgroundColor = "#e74c3c";
+        }
+    }
+
+
+    function leerTecnico() {
+       const data = localStorage.getItem(window.keyTecnico);
+    if (!data) return; 
+
+    try {
+        const info = JSON.parse(data);
+        // Ajustamos para que busque tanto los nombres nuevos como los antiguos
+        const tecnico = info.tecnico || info;
+        const fecha = info.fecha || "";
+
+        // 1. Lógica del técnico (Usando los nombres de campos correctos)
+        if (tecnico) {
+            // Usamos || para asegurar que tome el valor correcto independientemente del formato
+            document.getElementById("nombreTecnico").innerText = tecnico.fullName || tecnico.nombre || "";
+            document.getElementById("zonaTecnico").innerText = tecnico.coverageZone || tecnico.zona || "";
+            
+            // Si tiene id, confirmamos que se encontró
+            if (tecnico.id || tecnico.nombre || tecnico.fullName) {
+                tecnicoEncontrado = true;
+            }
+        }
+
+        // 2. Lógica de la fecha
+        if (fecha) {
+            document.getElementById("fechaVisita").value = fecha;
+        }
+    } catch (e) { 
+        console.error("Error leerTecnico", e); 
+    }
+    
+    validarBotonAsignar();
+}
+
+    function buscarTecnico() {
+        if (ventanaBusqueda && !ventanaBusqueda.closed) { ventanaBusqueda.focus(); return; }
+        ventanaBusqueda = window.open(`/Home/TecnicosBusqueda?alertId=${alertId}`, "_blank", "width=1200,height=800");
+        const timer = setInterval(() => {
+            if (!ventanaBusqueda || ventanaBusqueda.closed) {
+                clearInterval(timer);
+                leerTecnico();
+            }
+        }, 500);
+    }
+
+    function validarBotonAsignar() {
+        const fecha = document.getElementById("fechaVisita").value;
+        const btn = document.getElementById("btnAsignar");
+        btn.disabled = !(tecnicoEncontrado && fecha);
+        btn.style.opacity = btn.disabled ? "0.5" : "1";
+    }
+
+                async function asignarAlerta() {
+                        if (modo === "cerrar") {
+        await cerrarAlerta();
+        return;
+    }
+        const fecha = document.getElementById("fechaVisita").value;
+        const data = localStorage.getItem(window.keyTecnico);  // ← window.
+        if (!data || !fecha) { alert("Selecciona técnico y fecha."); return; }
+    
+        const tecnico = JSON.parse(data).tecnico || JSON.parse(data);
+
+        const res = await fetch(`https://localhost:7213/api/Alerts/${alertId}/assign`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+        technicianId: tecnico.id,
+        fechaVisita: fecha
+    })
+        });
+
+        if (res.ok) {
+            localStorage.setItem(window.keyTecnico, JSON.stringify({ tecnico, fecha }));
+            alert("Asignado correctamente.");
+            window.location.href = "/Home/Brigada";
+        } else {
+            alert("Error: " + await res.text());
+        }
+    }
+    
+        
+
+    async function cargarDetalle() {
+    const res = await fetch(`https://localhost:7213/api/Alerts/${alertId}`);
+    if (!res.ok) return;
+    const a = await res.json();
+
+    // HTML DEL DETALLE (sin cambios)
+    document.getElementById("detalle").innerHTML = `
+        <p><b>Tipo de Anomalía:</b> ${a.tipo ?? "No especificado"}</p>
+        <p><b>Nivel Alerta:</b> ${a.alertLevel ?? "Sin nivel"}</p>
+        <p><b>Cliente Local:</b> ${a.cliente ?? "No especificado"}</p>
+        <p><b>Zona / Ubicación:</b> ${a.zona ?? "No especificado"}</p>
+        <p><b>Medidor:</b> ${a.meterId ?? "Sin dato"}</p>
+        <p><b>Teléfonos:</b> ${a.telefonos ?? "No registrado"}</p>
+        <p><b>Fecha Actual y Hora del evento:</b> ${a.createdAt ? new Date(a.createdAt).toLocaleString() : "-"}</p>
+        <p><b>Observación:</b></p>
+        <div style="padding:15px; border:1px solid #ddd; border-radius:8px; background:#f9f9f9;">
+            ${a.observation ?? "Sin observación"}
+        </div>
+    `;
+
+    // 🔒 LÓGICA INMUTABLE: localStorage TIENE ABSOLUTA PRIORIDAD
+        const data = localStorage.getItem(window.keyTecnico);
+    
+    if (data) {
+        try {
+            const info = JSON.parse(data);
+            const tecnicoLocal = info.tecnico || info;
+            const fechaLocal = info.fecha || null;
+
+            // ✅ TÉCNICO: localStorage > API
+            if (tecnicoLocal) {
+                document.getElementById("nombreTecnico").innerText = tecnicoLocal.fullName || tecnicoLocal.nombre || "";
+                document.getElementById("zonaTecnico").innerText = tecnicoLocal.coverageZone || tecnicoLocal.zona || "";
+                tecnicoEncontrado = true;
+            }
+
+            // ✅ FECHA: localStorage ES INMUTABLE - NUNCA se sobreescribe con API
+            if (fechaLocal) {
+                document.getElementById("fechaVisita").value = fechaLocal;
+            }
+            // Si NO hay fechaLocal → queda vacío (no usamos API nunca para fecha)
+
+        } catch (e) {
+            console.error("Error parse localStorage", e);
+        }
+    } else {
+        // Solo si NO hay localStorage, usar datos de API
+        if (a.technicianId && a.technician) {
+            document.getElementById("nombreTecnico").innerText = a.technician.fullName;
+            document.getElementById("zonaTecnico").innerText = a.technician.coverageZone;
+            tecnicoEncontrado = true;
+        } else {
+            document.getElementById("nombreTecnico").innerText = "Vacío";
+            document.getElementById("zonaTecnico").innerText = "Vacío";
+            tecnicoEncontrado = false;
+        }
+        // FECHA: Si no hay localStorage, tampoco usamos API (queda vacío)
+    }
+
+    validarBotonAsignar();
+}
+
+        document.addEventListener("DOMContentLoaded", () => {
+                if (modo === "cerrar") {
+
+        document.querySelector("h2").innerText = "Cerrar Alerta";
+
+        const btn = document.getElementById("btnAsignar");
+        btn.innerText = "Cerrar Alerta";
+        btn.style.backgroundColor = "#e74c3c";
+        btn.disabled = false;
+
+        document.getElementById("btnBuscar").style.display = "none";
+        document.getElementById("fechaVisita").disabled = true;
+
+        document.getElementById("bloqueArchivo").style.display = "block";
+
+        tecnicoEncontrado = true;
+    }
+        initFecha();
+        leerTecnico();  // ← Carga técnico + fecha
+        cargarDetalle();
+        ajustarBotonAsignar();
+        document.getElementById("fechaVisita").addEventListener("change", validarBotonAsignar);
+        document.getElementById("btnVolver").addEventListener("click", () => {
+        window.location.href = "/Home/Brigada";  // ← Lista alertas
+        });
+    });
+
+        async function cerrarAlerta() {
+
+        const inputFile = document.getElementById("archivoEvidencia");
+
+        if (!inputFile.files || inputFile.files.length === 0) {
+            alert("Debes adjuntar un archivo antes de cerrar la alerta.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("archivo", inputFile.files[0]);
+
+        const res = await fetch(`https://localhost:7213/api/Alerts/${alertId}/close`, {
+            method: "PUT",
+            body: formData
+        });
+
+        if (res.ok) {
+            alert("Alerta cerrada correctamente");
+            window.location.href = "/Home/Brigada";
+        } else {
+            alert("Error al cerrar alerta");
+        }
+    }
+
+</script>

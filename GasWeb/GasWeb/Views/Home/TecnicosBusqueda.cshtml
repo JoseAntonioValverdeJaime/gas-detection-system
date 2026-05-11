@@ -1,0 +1,202 @@
+﻿@{
+    ViewData["Title"] = "Técnicos Disponibles";
+}
+
+<div style="padding:20px; font-family:Arial, sans-serif; background:#f2f2f2; min-height:100vh;">
+    <h2 style="text-align:center; margin-bottom:20px;">Técnicos Disponibles</h2>
+
+    <div style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr auto; gap:10px; margin-bottom:20px;">
+        <input id="nombre" placeholder="Nombre" style="padding:10px; border:1px solid #ccc; border-radius:6px;" />
+        <input id="dni" placeholder="DNI" style="padding:10px; border:1px solid #ccc; border-radius:6px;" />
+        <select id="zona" style="padding:10px; border:1px solid #ccc; border-radius:6px;">
+            <option value="">Zona</option>
+            <option value="Centro">Centro</option>
+            <option value="Norte">Norte</option>
+            <option value="Sur">Sur</option>
+        </select>
+        <select id="estado" style="padding:10px; border:1px solid #ccc; border-radius:6px;">
+            <option value="">Estado</option>
+            <option value="Activo">Activos</option>
+            <option value="Inactivo">Inactivos</option>
+        </select>
+        <input id="asignaciones" type="number" min="0" placeholder="Asignaciones" style="padding:10px; border:1px solid #ccc; border-radius:6px;" />
+        <button type="button" onclick="buscar()" style="background:#2f80ed; color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer;">
+            BUSCAR
+        </button>
+    </div>
+
+    <div style="background:white; padding:15px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08); overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="background:#0f2c3f; color:white;">
+                    <th style="padding:12px;">Nombre</th>
+                    <th style="padding:12px;">DNI</th>
+                    <th style="padding:12px;">Zona</th>
+                    <th style="padding:12px;">Teléfono</th>
+                    <th style="padding:12px;">Estado</th>
+                    <th style="padding:12px;">Asignaciones</th>
+                    <th style="padding:12px;">Selección</th>
+                    <th style="padding:12px;">Revisar</th>
+                </tr>
+            </thead>
+            <tbody id="tabla"></tbody>
+        </table>
+    </div>
+
+    <div style="margin-top:20px; text-align:center;">
+        <button id="btnAgregar" type="button" onclick="agregarTecnico()" disabled style="background:#2f80ed; color:white; border:none; padding:12px 25px; border-radius:6px; cursor:pointer; opacity:0.5;">
+            Agregar Técnico
+        </button>
+        <button type="button" onclick="cancelar()" style="background:#6c757d; color:white; border:none; padding:12px 25px; border-radius:6px; cursor:pointer; margin-left:10px;">
+            Cancelar
+        </button>
+    </div>
+</div>
+
+<script>
+    let tecnicos = [];
+    let tecnicoSeleccionado = null;
+
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const alertId = urlParams.get("alertId");
+    const keyTecnico = `tecnicoSeleccionado_${alertId}`;
+
+        async function cargarTecnicos() {
+        try {
+            const url = "https://localhost:7213/api/Technicians/available";
+            console.log("Intentando conectar a:", url);
+            const res = await fetch(url);
+            
+            
+            const texto = await res.text();
+            console.log("Respuesta cruda de la API:", texto);
+
+            if (!res.ok) {
+                console.error("Error HTTP:", res.status);
+                return;
+            }
+
+            
+            const data = JSON.parse(texto);
+            tecnicos = data;
+            render(tecnicos);
+        } catch (err) {
+            console.error("Error al cargar técnicos:", err);
+        }
+    }
+
+       function render(lista) {
+        let html = "";
+        lista.forEach(t => {
+            const nombre = t.fullName ?? t.FullName ?? "";
+            const dni = t.dni ?? t.Dni ?? "";
+            const zona = t.coverageZone ?? t.CoverageZone ?? "";
+            const phone = t.phone ?? t.Phone ?? "";
+            const active = (t.isActive === true || t.isActive === 1 || t.IsActive === true || t.IsActive === 1);
+            const asignaciones = t.cargaActual ?? t.totalAssignments ?? t.TotalAssignments ?? 0;
+            const id = t.id ?? t.Id ?? 0;
+            const status = t.status ?? t.Status ?? "";
+
+            // Lógica de color: Verde si <= 3, Rojo si > 3
+            const colorAsignaciones = asignaciones > 3 ? "#e74c3c" : "#27ae60";
+
+            html += `
+                <tr style="border-bottom:1px solid #e5e5e5;">
+                    <td style="padding:12px;">${nombre}</td>
+                    <td style="padding:12px;">${dni}</td>
+                    <td style="padding:12px;">${zona}</td>
+                    <td style="padding:12px;">${phone}</td>
+                    <td style="padding:12px;">
+                        <span style="padding:5px 10px; border-radius:12px; background:${active ? "#d4edda" : "#f8d7da"};">
+                            ${active ? "Activo" : "Inactivo"}
+                        </span>
+                    </td>
+                    <td style="padding:12px;">
+                        <span style="color: ${colorAsignaciones}; font-weight: bold;">
+                            ${asignaciones}
+                        </span>
+                    </td>
+                    <td style="padding:12px; text-align:center;">
+                        <input type="checkbox" onchange="seleccionar(${id}, this)">
+                    </td>
+                    <td style="padding:12px;">
+                        <button type="button" onclick="revisar(${id})" style="background:#2f80ed; color:white; border:none; padding:8px 14px; border-radius:6px; cursor:pointer;">
+                            ${(status === "Asignada" || status === "Reasignada") ? "Editar" : "Ver"}
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        document.getElementById("tabla").innerHTML = html;
+    }
+
+    function buscar() {
+        const nombre = document.getElementById("nombre").value.toLowerCase();
+        const dni = document.getElementById("dni").value.toLowerCase();
+        const zona = document.getElementById("zona").value;
+        const estado = document.getElementById("estado").value;
+        const asignaciones = document.getElementById("asignaciones").value;
+
+        const filtrado = tecnicos.filter(t => {
+            const nombreT = (t.fullName ?? t.FullName ?? "").toLowerCase();
+            const dniT = (t.dni ?? t.Dni ?? "").toLowerCase();
+            const zonaT = (t.coverageZone ?? t.CoverageZone ?? "");
+            const active = (t.isActive === true || t.isActive === 1 || t.IsActive === true || t.IsActive === 1);
+            const asignT = (t.totalAssignments ?? t.TotalAssignments ?? 0);
+
+            return nombreT.includes(nombre) &&
+                   dniT.includes(dni) &&
+                   (zona === "" || zonaT === zona) &&
+                   (estado === "" || (estado === "Activo" ? active : !active)) &&
+                   (asignaciones === "" || asignT <= Number(asignaciones));
+        });
+
+        render(filtrado);
+    }
+
+    function seleccionar(id, chk) {
+        document.querySelectorAll('input[type="checkbox"]').forEach(x => {
+            if (x !== chk) x.checked = false;
+        });
+
+        tecnicoSeleccionado = chk.checked ? tecnicos.find(t => (t.id ?? t.Id) === id) : null;
+
+        const btn = document.getElementById("btnAgregar");
+        btn.disabled = !tecnicoSeleccionado;
+        btn.style.opacity = tecnicoSeleccionado ? "1" : "0.5";
+    }
+
+            function agregarTecnico() {
+        if (!tecnicoSeleccionado) return;
+
+        const tecnico = {
+            id: tecnicoSeleccionado.id ?? tecnicoSeleccionado.Id,
+            nombre: tecnicoSeleccionado.fullName ?? tecnicoSeleccionado.FullName,
+            zona: tecnicoSeleccionado.coverageZone ?? tecnicoSeleccionado.CoverageZone
+        };
+
+        // GUARDAR EN localStorage POR ALERTA
+        localStorage.setItem(keyTecnico, JSON.stringify(tecnico));
+
+        window.close();
+    }
+    
+
+    function cancelar() {
+        localStorage.removeItem(keyTecnico);
+        window.close();
+    }
+
+        function revisar(id) {
+        const t = tecnicos.find(x => (x.id ?? x.Id) === id);
+        if (!t) return;
+    
+      
+        window.open(`/Home/TecnicoDetalle?id=${id}`, "_blank", "width=800,height=600");
+    }
+
+    
+    cargarTecnicos();
+
+</script>

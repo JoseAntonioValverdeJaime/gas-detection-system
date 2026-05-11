@@ -1,0 +1,111 @@
+﻿@{
+    ViewData["Title"] = "Administrar Técnicos";
+}
+
+<div style="display:flex; min-height:100vh; background:#f2f2f2; font-family:Arial;">
+
+    <!-- MENÚ IZQUIERDO -->
+    <div style="width:240px; background:#0f2c3f; color:white; padding:20px;">
+        <h3>Menú</h3>
+
+        <div style="margin:15px 0; cursor:pointer;" onclick="ir('/Home/Brigada')">
+            Gestión Alertas
+        </div>
+
+        <div style="margin:15px 0; cursor:pointer;">
+            Reportes Alertas
+        </div>
+
+        <div style="margin:15px 0; font-weight:bold; cursor:pointer;">
+            Habilitar/Inhabilitar Técnicos
+        </div>
+    </div>
+
+    <!-- CONTENIDO -->
+    <div style="flex:1; padding:25px;">
+
+        <h2>Administrar Técnicos</h2>
+
+        <div style="background:white; padding:15px; border-radius:10px;">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="background:#0f2c3f; color:white;">
+                        <th style="padding:10px;">Nombre</th>
+                        <th style="padding:10px;">Zona</th>
+                        <th style="padding:10px;">Estado</th>
+                        <th style="padding:10px;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla"></tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    let tecnicos = [];
+
+    function ir(url) {
+        window.location.href = url;
+    }
+
+    async function cargar() {
+        const res = await fetch("https://localhost:7213/api/Technicians");
+        const data = await res.json();
+
+        tecnicos = data;
+        render();
+    }
+
+    function render() {
+        let html = "";
+
+        tecnicos.forEach(t => {
+
+            const activo = t.isActive;
+
+            html += `
+                <tr style="border-bottom:1px solid #ddd;">
+                    <td style="padding:10px;">${t.fullName}</td>
+                    <td style="padding:10px;">${t.coverageZone}</td>
+                    <td style="padding:10px;">
+                        <b style="color:${activo ? "green" : "red"};">
+                            ${activo ? "Activo" : "Inactivo"}
+                        </b>
+                    </td>
+                    <td style="padding:10px;">
+                        <button onclick="toggle(${t.id}, ${activo})"
+                            style="background:${activo ? "#e74c3c" : "#27ae60"};
+                                   color:white; border:none; padding:8px 12px;
+                                   border-radius:6px; cursor:pointer;">
+                            ${activo ? "Inhabilitar" : "Habilitar"}
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        document.getElementById("tabla").innerHTML = html;
+    }
+
+    async function toggle(id, activoActual) {
+
+        const nuevoEstado = activoActual ? 2 : 1;
+
+        const res = await fetch(`https://localhost:7213/api/Technicians/${id}/estado`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ isActive: nuevoEstado })
+        });
+
+        if (res.ok) {
+            alert("Estado actualizado");
+            cargar();
+        } else {
+            alert("Error al actualizar");
+        }
+    }
+
+    cargar();
+</script>
